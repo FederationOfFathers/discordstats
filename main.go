@@ -16,45 +16,34 @@ func main() {
 	log.Info("Discord stats starting")
 	defer handlePanic()
 
+	// get discord Bot Token
 	var dCfg discord.DiscordConfig
 	envconfig.MustProcess("discord", &dCfg)
 	if dCfg.BotToken == "" {
 		log.Fatal("empty discord bot token")
 	}
 
-	// test new guild
+	// get DB config
 	var dbCfg db.DBConfig
 	envconfig.MustProcess("db", &dbCfg)
 	if dbCfg.ConnectionString == "" {
 		log.Fatal("empty connection string is not valid")
 	}
-	s := db.Connect(dbCfg)
-	// if err != nil {
-	// 	log.WithFields(log.Fields{
-	// 		"error": err.Error(),
-	// 	}).Fatal("unable to connect to db")
-	// }
-	defer s.Close()
 
-	db.Initialize(s)
+	// connect to DB
+	dataB := db.Connect(dbCfg)
+	defer dataB.Close()
 
+	// initialize db with tables and things
+	log.Info("Initializing DB")
+	dataB.Initialize()
+
+	// start the guild monitor
 	gm := &monitors.GuildMonitor{
+		DB:            &dataB,
 		DiscordConfig: dCfg,
 	}
-	guildUpdates := gm.Start()
-	go func() {
-		for gs := range guildUpdates {
-			log.WithFields(log.Fields{
-				"guilds": gs,
-			}).Info("guilds updated")
-		}
-	}()
-
-	// guild := &db.Guild{
-	// 	GuildID: "1231412312312314",
-	// }
-
-	log.Info("record created")
+	gm.Start()
 
 	awaitSignal()
 }
@@ -81,11 +70,6 @@ func awaitSignal() {
 		}).Info("signal recieved")
 		done <- true
 	}()
-
-	// start monitos that write to DB
-	// discord_stats_guilds
-	// discord_stats_channel_messages
-	// discord_stats_presence_updates
 
 	<-done
 	log.Info("stats exited")

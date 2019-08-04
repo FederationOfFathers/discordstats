@@ -14,11 +14,23 @@ type DBConfig struct {
 	ConnectionString string `split_words:"true";default:"fofgaming:fofdev@tcp(localhost:3306)/fofgaming?charset=utf8mb4_general_ci&parseTime=true"`
 }
 
-func Connect(cfg DBConfig) *sqlx.DB {
-	return sqlx.MustConnect("mysql", cfg.ConnectionString)
+type Database struct {
+	db *sqlx.DB
+}
+
+func Connect(cfg DBConfig) Database {
+	db := sqlx.MustConnect("mysql", cfg.ConnectionString)
+
+	return Database{
+		db: db,
+	}
+}
+
+func (d Database) Close() {
+	d.db.Close()
 }
 
 // Initialize initializes a database by ensuring the tables needed exist
-func Initialize(d *sqlx.DB) {
-	d.MustExec(guildSchema)
+func (d Database) Initialize() {
+	d.db.MustExec(guildSchema)
 }
