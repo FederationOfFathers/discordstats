@@ -3,12 +3,20 @@ package discord
 // Performs all of the discord functions withou exposing the underlying discord implementation library.
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 )
 
 type DiscordConfig struct {
 	BotToken string `split_words:"true"`
+}
+
+type Guild struct {
+	ID   string
+	Name string
 }
 
 func connect(dCfg DiscordConfig) (*discordgo.Session, error) {
@@ -20,27 +28,30 @@ func connect(dCfg DiscordConfig) (*discordgo.Session, error) {
 	return d, nil
 }
 
-func Guilds(dCfg DiscordConfig) ([]string, error) {
+func Guilds(dCfg DiscordConfig) ([]Guild, error) {
 
 	d, err := connect(dCfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get guilds")
 	}
 
-	var guildIDs []string
+	var guilds []Guild
 	lastGuildID := "0"
 
 	// start a loop to iterate over each set of 100 guilds from the API
 	for {
-		guilds, err := d.UserGuilds(100, "", lastGuildID)
+		gset, err := d.UserGuilds(100, "", lastGuildID)
 		if err != nil {
-			return guildIDs, errors.Wrap(err, "guilds call failed")
+			return guilds, errors.Wrap(err, "guilds call failed")
 		}
 
 		// add each guild id to the slice
-		for _, guild := range guilds {
+		for _, guild := range gset {
 			lastGuildID = guild.ID
-			guildIDs = append(guildIDs, guild.ID)
+			guilds = append(guilds, Guild{
+				ID:   guild.ID,
+				Name: guild.Name,
+			})
 		}
 
 		// if we had < 100 guilds, then we've reached the last set
@@ -50,5 +61,5 @@ func Guilds(dCfg DiscordConfig) ([]string, error) {
 
 	}
 
-	return guildIDs, nil
+	return guilds, nil
 }
