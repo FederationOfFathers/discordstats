@@ -3,9 +3,6 @@ package discord
 // Performs all of the discord functions withou exposing the underlying discord implementation library.
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 )

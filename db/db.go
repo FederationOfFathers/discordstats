@@ -33,4 +33,5 @@ func (d Database) Close() {
 // Initialize initializes a database by ensuring the tables needed exist
 func (d Database) Initialize() {
 	d.db.MustExec(guildSchema)
+	d.db.MustExec(channelsSchema)
 }

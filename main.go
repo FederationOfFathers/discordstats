@@ -45,6 +45,12 @@ func main() {
 	}
 	gm.Start()
 
+	cm := &monitors.ChannelsMonitor{
+		DB:            &dataB,
+		DiscordConfig: dCfg,
+	}
+	cm.Start()
+
 	awaitSignal()
 }
 
