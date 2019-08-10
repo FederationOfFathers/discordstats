@@ -25,11 +25,11 @@ const insertChannelStmt = `INSERT INTO ` + channelsTablename + ` (id, name, guil
 								last_message_seen = GREATEST(?, last_message_seen)`
 
 type Channel struct {
-	ID              string
-	Name            string
-	GuildID         string
-	LastUpdated     time.Time
-	LastMessageSeen time.Time
+	ID              string    `db:"id"`
+	Name            string    `db:"name"`
+	GuildID         string    `db:"guild_id"`
+	LastUpdated     time.Time `db:"last_updated"`
+	LastMessageSeen time.Time `db:"last_message_seen"`
 }
 
 func (d *Database) SaveChannel(chID string, chName string, gID string, lastMessageSeen time.Time) error {
@@ -42,4 +42,14 @@ func (d *Database) SaveChannel(chID string, chName string, gID string, lastMessa
 	_, err2 := stmt.Exec(chID, chName, gID, lastMessageSeen, chName, lastMessageSeen)
 	return err2
 
+}
+
+// GetLatestChannels gets a slice of channels updated in the last 1 day
+func (d *Database) GetLatestChannels() ([]Channel, error) {
+	q := "SELECT * FROM " + channelsTablename + " WHERE last_updated > NOW() - INTERVAL 1 DAY"
+	channels := []Channel{}
+	if err := d.db.Select(&channels, q); err != nil {
+		return channels, errors.Wrap(err, "could not select channels")
+	}
+	return channels, nil
 }

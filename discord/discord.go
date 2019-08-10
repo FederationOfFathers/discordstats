@@ -11,6 +11,10 @@ type DiscordConfig struct {
 	BotToken string `split_words:"true"`
 }
 
+type DiscordConnection struct {
+	d *discordgo.Session
+}
+
 type Guild struct {
 	ID   string
 	Name string
@@ -23,6 +27,15 @@ func connect(dCfg DiscordConfig) (*discordgo.Session, error) {
 	}
 
 	return d, nil
+}
+
+func NewConnection(cfg DiscordConfig) (*DiscordConnection, error) {
+	d, err := connect(cfg)
+	return &DiscordConnection{d: d}, err
+}
+
+func (d *DiscordConnection) Close() {
+	d.d.Close()
 }
 
 func Guilds(dCfg DiscordConfig) ([]Guild, error) {

@@ -34,4 +34,5 @@ func (d Database) Close() {
 func (d Database) Initialize() {
 	d.db.MustExec(guildSchema)
 	d.db.MustExec(channelsSchema)
+	d.db.MustExec(messageCountsSchema)
 }

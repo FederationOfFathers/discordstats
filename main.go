@@ -45,11 +45,19 @@ func main() {
 	}
 	gm.Start()
 
+	// start channels monitor
 	cm := &monitors.ChannelsMonitor{
 		DB:            &dataB,
 		DiscordConfig: dCfg,
 	}
 	cm.Start()
+
+	// start message counts monitor
+	mcm := &monitors.MessageCountsMonitor{
+		DB:            &dataB,
+		DiscordConfig: dCfg,
+	}
+	mcm.Start()
 
 	awaitSignal()
 }
