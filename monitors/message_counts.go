@@ -5,17 +5,26 @@ import (
 
 	"github.com/FederationOfFathers/discordstats/db"
 	"github.com/FederationOfFathers/discordstats/discord"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const dateFormat = "20060102"
 
-type MessageCountsMonitor struct {
+type messageCountsMonitor struct {
 	DiscordConfig discord.DiscordConfig
 	DB            *db.Database
+	log           *logrus.Entry
 }
 
-func (m *MessageCountsMonitor) Start() {
+func NewMessageCountsMonitor(database *db.Database, dCfg discord.DiscordConfig) *messageCountsMonitor {
+	return &messageCountsMonitor{
+		DiscordConfig: dCfg,
+		DB:            database,
+		log:           logrus.WithField("_module", "monitors.message_counts"),
+	}
+}
+
+func (m *messageCountsMonitor) Start() {
 	ticker := time.NewTicker(60 * time.Minute)
 
 	go m.gatherMessages()
@@ -26,12 +35,12 @@ func (m *MessageCountsMonitor) Start() {
 	}()
 }
 
-func (m *MessageCountsMonitor) gatherMessages() {
-	log.Info("messages counts monitor started")
+func (m *messageCountsMonitor) gatherMessages() {
+	m.log.Info("messages counts monitor started")
 	// get channels in DB
 	channels, err := m.DB.GetLatestChannels()
 	if err != nil {
-		log.WithFields(log.Fields{
+		m.log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("could not gather channels for messages")
 		return
@@ -51,22 +60,22 @@ func (m *MessageCountsMonitor) gatherMessages() {
 	}()
 
 	// queue the channels into the chan
-	log.WithFields(log.Fields{
+	m.log.WithFields(logrus.Fields{
 		"channels": len(channels),
 	}).Info("queueing up channels")
 	for _, c := range channels {
 		channelsChan <- c
 	}
 
-	log.Info("channels monitor complete")
+	m.log.Info("channels monitor complete")
 
 }
 
 // messages are counted and added up for each day. times are converted to Eastern timezone (America/New_York)
-func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
+func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 	nyTZ, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		log.WithFields(log.Fields{
+		m.log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("couldn't get nyTZ")
 		return
@@ -75,7 +84,7 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 		return
 	}
 	// get channel messages, run x number at a time, how? waitgroup?
-	log.WithFields(log.Fields{
+	m.log.WithFields(logrus.Fields{
 		"channelID":   ch.ID,
 		"channelName": ch.Name,
 	}).Info("gathering channel message data")
@@ -84,7 +93,7 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 	lastCountDate, err := m.DB.LastMessageCountDate(ch.ID) // TODO check this
 	lastCountDate = dateOnly(lastCountDate.In(nyTZ))
 	if err != nil {
-		log.WithFields(log.Fields{
+		m.log.WithFields(logrus.Fields{
 			"channelID":   ch.ID,
 			"channelName": ch.Name,
 			"error":       err,
@@ -95,7 +104,7 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 	// get Discord connection
 	d, err := discord.NewConnection(m.DiscordConfig)
 	if err != nil {
-		log.WithFields(log.Fields{
+		m.log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("unable to connect to discord")
 		return
@@ -110,7 +119,7 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 		// get the next 100 messages
 		messages, err := d.ChannelMessages(ch.ID, lastMessageID)
 		if err != nil {
-			log.WithFields(log.Fields{
+			m.log.WithFields(logrus.Fields{
 				"channelID": ch.ID,
 				"guildID":   ch.GuildID,
 				"error":     err,
@@ -122,13 +131,13 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 		for _, msg := range messages {
 			msgDate := msg.Timestamp.In(nyTZ)
 			lastMessageID = msg.ID
-			log.WithFields(log.Fields{
+			m.log.WithFields(logrus.Fields{
 				"date": msgDate,
 			}).Debug("message")
 
 			// skip messages from today
 			if msgDate.Unix() >= today.Unix() {
-				log.WithFields(log.Fields{
+				m.log.WithFields(logrus.Fields{
 					"today":   today,
 					"msgDate": msgDate,
 				}).Debug("skipping todays message")
@@ -138,13 +147,13 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 			// if message is older than last count (or equal) save the current messageCount and finish
 			if msgDate.Unix() <= lastCountDate.Unix() {
 				// do the save
-				log.Debug("past last count date")
+				m.log.Debug("past last count date")
 				break
 			}
 
 			// if message is older than the currentCountingDate save and update counting date
 			if msgDate.Unix() < currentCountingDate.Unix() {
-				log.Debug("past current count date. save n reset.")
+				m.log.Debug("past current count date. save n reset.")
 				m.saveMessageCount(ch.ID, currentCountingDate, currentDateMessageCount)
 				currentCountingDate = dateOnly(msgDate)
 				currentDateMessageCount = 0
@@ -161,7 +170,7 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 
 	}
 
-	log.WithFields(log.Fields{
+	m.log.WithFields(logrus.Fields{
 		"channelID":   ch.ID,
 		"channelName": ch.Name,
 	}).Info("finished counting messages")
@@ -169,20 +178,21 @@ func (m *MessageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 
 func dateOnly(timestamp time.Time) time.Time {
 
-	if t, err := time.ParseInLocation(dateFormat, timestamp.Format(dateFormat), timestamp.Location()); err != nil {
-		log.WithFields(log.Fields{
+	t, err := time.ParseInLocation(dateFormat, timestamp.Format(dateFormat), timestamp.Location())
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
 			"timestamp": timestamp,
 			"error":     err,
 		}).Warn("couldn't parse time to date")
 		return timestamp
-	} else {
-		return t
 	}
+
+	return t
 
 }
 
-func (m *MessageCountsMonitor) saveMessageCount(channelID string, date time.Time, count uint64) {
-	l := log.WithFields(log.Fields{
+func (m *messageCountsMonitor) saveMessageCount(channelID string, date time.Time, count uint64) {
+	l := m.log.WithFields(logrus.Fields{
 		"channelID": channelID,
 		"date":      date.Format("01-02-2006"),
 		"count":     count,

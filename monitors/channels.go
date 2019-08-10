@@ -5,16 +5,25 @@ import (
 
 	"github.com/FederationOfFathers/discordstats/db"
 	"github.com/FederationOfFathers/discordstats/discord"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
-type ChannelsMonitor struct {
+type channelsMonitor struct {
 	DiscordConfig discord.DiscordConfig
 	DB            *db.Database
+	log           *logrus.Entry
 }
 
-func (c *ChannelsMonitor) Start() {
-	ticker := time.NewTicker(1 * time.Minute)
+func NewChannelsMonitor(database *db.Database, dCfg discord.DiscordConfig) *channelsMonitor {
+	return &channelsMonitor{
+		DB:            database,
+		DiscordConfig: dCfg,
+		log:           logrus.WithField("_module", "monitors.channels"),
+	}
+}
+
+func (c *channelsMonitor) Start() {
+	ticker := time.NewTicker(60 * time.Minute)
 
 	go c.startMonitor()
 	go func() {
@@ -25,16 +34,16 @@ func (c *ChannelsMonitor) Start() {
 
 }
 
-func (c *ChannelsMonitor) startMonitor() {
-	log.Info("starting channels monitor")
+func (c *channelsMonitor) startMonitor() {
+	c.log.Info("starting channels monitor")
 	guilds, err := c.DB.LatestGuilds()
 	if err != nil {
-		log.WithFields(log.Fields{
+		c.log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("unable to get latest guilds")
 		return
 	}
-	log.WithFields(log.Fields{
+	c.log.WithFields(logrus.Fields{
 		"guilds": guilds,
 	}).Debug("guilds recieved")
 	for _, g := range guilds {
@@ -42,11 +51,11 @@ func (c *ChannelsMonitor) startMonitor() {
 	}
 }
 
-func (c *ChannelsMonitor) gatherChannels(guildID string) {
-	log.Infof("gathering channels %s", guildID)
+func (c *channelsMonitor) gatherChannels(guildID string) {
+	c.log.Infof("gathering channels %s", guildID)
 	channels, err := discord.GuildChannels(c.DiscordConfig, guildID)
 	if err != nil {
-		log.WithFields(log.Fields{
+		c.log.WithFields(logrus.Fields{
 			"guildID": guildID,
 			"error":   err,
 		}).Error("unable to get channels")
@@ -56,7 +65,7 @@ func (c *ChannelsMonitor) gatherChannels(guildID string) {
 	for _, ch := range channels {
 		lastMsgTime, err := discord.LastChannelMessageTime(c.DiscordConfig, ch.ID)
 		if err != nil {
-			log.WithFields(log.Fields{
+			c.log.WithFields(logrus.Fields{
 				"guildID":     guildID,
 				"channelID":   ch.ID,
 				"channelName": ch.Name,
@@ -67,7 +76,7 @@ func (c *ChannelsMonitor) gatherChannels(guildID string) {
 
 		err2 := c.DB.SaveChannel(ch.ID, ch.Name, guildID, lastMsgTime)
 		if err2 != nil {
-			log.WithFields(log.Fields{
+			c.log.WithFields(logrus.Fields{
 				"guildID":     guildID,
 				"channelID":   ch.ID,
 				"channelName": ch.Name,

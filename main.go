@@ -39,24 +39,15 @@ func main() {
 	dataB.Initialize()
 
 	// start the guild monitor
-	gm := &monitors.GuildMonitor{
-		DB:            &dataB,
-		DiscordConfig: dCfg,
-	}
+	gm := monitors.NewGuildMonitor(&dataB, dCfg)
 	gm.Start()
 
 	// start channels monitor
-	cm := &monitors.ChannelsMonitor{
-		DB:            &dataB,
-		DiscordConfig: dCfg,
-	}
+	cm := monitors.NewChannelsMonitor(&dataB, dCfg)
 	cm.Start()
 
 	// start message counts monitor
-	mcm := &monitors.MessageCountsMonitor{
-		DB:            &dataB,
-		DiscordConfig: dCfg,
-	}
+	mcm := monitors.NewMessageCountsMonitor(&dataB, dCfg)
 	mcm.Start()
 
 	awaitSignal()

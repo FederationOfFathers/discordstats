@@ -5,19 +5,29 @@ import (
 
 	"github.com/FederationOfFathers/discordstats/db"
 	"github.com/FederationOfFathers/discordstats/discord"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // guilds
 
-type GuildMonitor struct {
+type guildMonitor struct {
 	DB            *db.Database
 	DiscordConfig discord.DiscordConfig
+	log           *logrus.Entry
+}
+
+func NewGuildMonitor(database *db.Database, discordConfig discord.DiscordConfig) *guildMonitor {
+
+	return &guildMonitor{
+		DB:            database,
+		DiscordConfig: discordConfig,
+		log:           logrus.WithField("_module", "monitor.guilds"),
+	}
 }
 
 // Start begins a go routine that checks the list of guilds the bot is a member of.
 // It saves/updates the guilds in the DB
-func (g *GuildMonitor) Start() {
+func (g *guildMonitor) Start() {
 	ticker := time.NewTicker(15 * time.Minute)
 
 	go g.gatherGuilds()
@@ -30,22 +40,22 @@ func (g *GuildMonitor) Start() {
 
 }
 
-func (g *GuildMonitor) gatherGuilds() {
-	log.Info("gathering guilds")
+func (g *guildMonitor) gatherGuilds() {
+	g.log.Info("gathering guilds")
 	guilds, err := discord.Guilds(g.DiscordConfig)
 	if err != nil {
-		log.WithFields(log.Fields{
+		g.log.WithFields(logrus.Fields{
 			"error": err,
 		}).Error("could not get guilds")
 	}
-	log.WithFields(log.Fields{
+	g.log.WithFields(logrus.Fields{
 		"guilds_count": len(guilds),
 	}).Info("guilds gathered")
 
 	//update/add each guild
 	for _, guild := range guilds {
 		if err := g.DB.InsertOrUpdateGuild(guild.ID, guild.Name); err != nil {
-			log.WithFields(log.Fields{
+			g.log.WithFields(logrus.Fields{
 				"guildID":   guild.ID,
 				"guildName": guild.Name,
 				"error":     err,
