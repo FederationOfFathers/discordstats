@@ -113,7 +113,7 @@ func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 	// get the messages
 	var lastMessageID string // the last message ID in the previous set
 	today := dateOnly(time.Now().In(nyTZ))
-	currentCountingDate := dateOnly(time.Now().In(nyTZ)) // the date that is currently being counted
+	currentCountingDate := dateOnly(time.Now().Add(-24 * time.Hour).In(nyTZ)) // the date that is currently being counted, starting with yesterday
 	var currentDateMessageCount uint64
 	for {
 		// get the next 100 messages
@@ -163,7 +163,7 @@ func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 		}
 
 		// if 100, we may have more, other wise we are done
-		if len(messages) < 100 {
+		if len(messages) < 100 && currentDateMessageCount > 0 {
 			m.saveMessageCount(ch.ID, currentCountingDate, currentDateMessageCount)
 			break
 		}

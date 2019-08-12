@@ -13,6 +13,9 @@ import (
 )
 
 func main() {
+	log.SetLevel(log.InfoLevel)
+	// log.SetReportCaller(true)
+
 	log.Info("Discord stats starting")
 	defer handlePanic()
 
