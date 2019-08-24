@@ -8,7 +8,7 @@ RUN cd /app && go build
 ENTRYPOINT ["/app/discordstats"]
 
 FROM alpine
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /root/
 COPY --from=build /app/discordstats .
 CMD ["./discordstats"]

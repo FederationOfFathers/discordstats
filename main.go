@@ -8,13 +8,27 @@ import (
 	"github.com/FederationOfFathers/discordstats/db"
 	"github.com/FederationOfFathers/discordstats/discord"
 	"github.com/FederationOfFathers/discordstats/monitors"
+	"github.com/heroku/rollrus"
 	"github.com/kelseyhightower/envconfig"
 	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	log.SetLevel(log.InfoLevel)
+
+	log.SetLevel(log.DebugLevel)
 	// log.SetReportCaller(true)
+
+	//assume local by default
+	env := "local"
+	if e, ok := os.LookupEnv("ENVIRONMENT"); ok {
+		env = e
+	}
+	log.Debugf("start in %s env", env)
+
+	//check if rollbar
+	if rollbarToken, ok := os.LookupEnv("ROLLBAR_TOKEN"); ok {
+		rollrus.SetupLoggingForLevels(rollbarToken, env, []log.Level{log.InfoLevel, log.WarnLevel, log.ErrorLevel})
+	}
 
 	log.Info("Discord stats starting")
 	defer handlePanic()

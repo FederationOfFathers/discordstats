@@ -23,7 +23,7 @@ const messageCountsInsert = "INSERT INTO " + messageCountsTableName + " (channel
 type MessageCount struct {
 	ChannelID     string    `db:"channel_id"`
 	Date          time.Time `db:"count_date"`
-	MessagesCount int64     `db:"message_count"`
+	MessagesCount uint64    `db:"message_count"`
 }
 
 func (d *Database) LastMessageCountDate(channelID string) (time.Time, error) {
