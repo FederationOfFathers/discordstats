@@ -1,0 +1,5 @@
+app:
+  build:
+    image: quay.io/fofgaming/discordstats
+    dockerfile: Dockerfile
+  encrypted_cockercfg_path: dockercfg.encrypted
