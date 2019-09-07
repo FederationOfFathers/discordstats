@@ -15,19 +15,24 @@ import (
 
 func main() {
 
-	log.SetLevel(log.DebugLevel)
-	// log.SetReportCaller(true)
+	log.SetReportCaller(true)
 
 	//assume local by default
 	env := "local"
 	if e, ok := os.LookupEnv("ENVIRONMENT"); ok {
 		env = e
 	}
+
+	if env == "production" {
+		log.SetLevel(log.InfoLevel)
+	} else {
+		log.SetLevel(log.DebugLevel)
+	}
 	log.Debugf("start in %s env", env)
 
 	//check if rollbar
 	if rollbarToken, ok := os.LookupEnv("ROLLBAR_TOKEN"); ok {
-		rollrus.SetupLoggingForLevels(rollbarToken, env, []log.Level{log.InfoLevel, log.WarnLevel, log.ErrorLevel})
+		rollrus.SetupLoggingForLevels(rollbarToken, env, []log.Level{log.InfoLevel, log.WarnLevel, log.ErrorLevel, log.FatalLevel, log.PanicLevel})
 	}
 
 	log.Info("Discord stats starting")
