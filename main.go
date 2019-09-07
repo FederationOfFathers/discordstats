@@ -32,7 +32,7 @@ func main() {
 
 	//check if rollbar
 	if rollbarToken, ok := os.LookupEnv("ROLLBAR_TOKEN"); ok {
-		rollrus.SetupLoggingForLevels(rollbarToken, env, []log.Level{log.InfoLevel, log.WarnLevel, log.ErrorLevel, log.FatalLevel, log.PanicLevel})
+		rollrus.SetupLoggingForLevels(rollbarToken, env, []log.Level{log.WarnLevel, log.ErrorLevel, log.FatalLevel, log.PanicLevel})
 	}
 
 	log.Info("Discord stats starting")
