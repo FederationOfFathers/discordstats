@@ -1,3 +1,4 @@
+.PHONY: build run deploy vendor
 build:
 	docker build . -t fofgaming/discordstats
 run:
