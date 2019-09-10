@@ -28,7 +28,8 @@ type Channel struct {
 	ID              string    `db:"id"`
 	Name            string    `db:"name"`
 	GuildID         string    `db:"guild_id"`
-	LastUpdated     time.Time `db:"last_updated"`
+	CreatedAt       time.Time `db:"created_at"`
+	LastUpdatedAt   time.Time `db:"last_updated"`
 	LastMessageSeen time.Time `db:"last_message_seen"`
 }
 

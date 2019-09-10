@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -53,4 +54,23 @@ func (d *Database) SaveMessageCount(channelID string, date time.Time, count uint
 	}
 
 	return nil
+}
+
+func (d *Database) MessageCountsByGuildChannels(guildID string, maxDays int) ([]MessageCount, error) {
+
+	messageCounts := []MessageCount{}
+	var qMaxDays string
+	if maxDays > 0 {
+		qMaxDays = fmt.Sprintf("AND mc.count_date > NOW() - INTERVAL %d DAY", maxDays+1)
+	}
+	q := `SELECT mc.channel_id, mc.count_date, mc.message_count 
+			FROM discord_stats_message_counts as mc 
+			INNER JOIN discord_stats_channels AS c ON mc.channel_id=c.id 
+			WHERE c.guild_id=? ` + qMaxDays + ` ORDER BY mc.channel_id ASC, mc.count_date ASC`
+
+	if err := d.db.Select(&messageCounts, q, guildID); err != nil {
+		return messageCounts, errors.Wrap(err, "unable to query message counts")
+	}
+
+	return messageCounts, nil
 }

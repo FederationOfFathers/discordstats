@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/FederationOfFathers/discordstats/api"
 	"github.com/FederationOfFathers/discordstats/db"
 	"github.com/FederationOfFathers/discordstats/discord"
 	"github.com/FederationOfFathers/discordstats/monitors"
@@ -71,6 +72,9 @@ func main() {
 	// start message counts monitor
 	mcm := monitors.NewMessageCountsMonitor(&dataB, dCfg)
 	mcm.Start()
+
+	apis := api.NewAPIHandlers(&dataB)
+	apis.Start()
 
 	awaitSignal()
 }
