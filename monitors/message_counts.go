@@ -61,7 +61,8 @@ func (m *messageCountsMonitor) gatherMessages() {
 
 	// queue the channels into the chan
 	m.log.WithFields(logrus.Fields{
-		"channels": len(channels),
+		"channels_count": len(channels),
+		"channels":       channels,
 	}).Info("queueing up channels")
 	for _, c := range channels {
 		channelsChan <- c
@@ -81,6 +82,9 @@ func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 		return
 	}
 	if ch.ID == "" {
+		m.log.WithFields(logrus.Fields{
+			"channel": ch,
+		}).Debug("skipping channel without ID")
 		return
 	}
 	// get channel messages, run x number at a time, how? waitgroup?
@@ -101,11 +105,18 @@ func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 		return
 	}
 
+	m.log.WithFields(logrus.Fields{
+		"channelID":            ch.ID,
+		"channelName":          ch.Name,
+		"lastMessageCountDate": lastCountDate,
+	}).Debug("lastMessageCount retrieved")
+
 	// get Discord connection
 	d, err := discord.NewConnection(m.DiscordConfig)
 	if err != nil {
 		m.log.WithFields(logrus.Fields{
-			"error": err,
+			"channelID": ch.ID,
+			"error":     err,
 		}).Error("unable to connect to discord")
 		return
 	}
@@ -115,6 +126,7 @@ func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 	today := dateOnly(time.Now().In(nyTZ))
 	currentCountingDate := dateOnly(time.Now().Add(-24 * time.Hour).In(nyTZ)) // the date that is currently being counted, starting with yesterday
 	var currentDateMessageCount uint64
+	pastLastCountDate := false
 	for {
 		// get the next 100 messages
 		messages, err := d.ChannelMessages(ch.ID, lastMessageID)
@@ -127,7 +139,7 @@ func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 			break
 		}
 
-		// process the messages
+		// process the current message batch
 		for _, msg := range messages {
 			msgDate := msg.Timestamp.In(nyTZ)
 			lastMessageID = msg.ID
@@ -138,28 +150,48 @@ func (m *messageCountsMonitor) updateChannelMessageCounts(ch *db.Channel) {
 			// skip messages from today
 			if msgDate.Unix() >= today.Unix() {
 				m.log.WithFields(logrus.Fields{
-					"today":   today,
-					"msgDate": msgDate,
+					"channelID": ch.ID,
+					"today":     today,
+					"msgDate":   msgDate,
 				}).Debug("skipping todays message")
+				continue
+			}
+
+			// if message is older than the currentCountingDate save and reset counting date
+			if msgDate.Unix() < currentCountingDate.Unix() {
+
+				m.log.WithFields(logrus.Fields{
+					"msgDate":                 msgDate,
+					"currentCountingDate":     currentCountingDate,
+					"currentDateMessageCount": currentDateMessageCount,
+					"channelID":               ch.ID,
+				}).Debug("past current count date. save n reset.")
+
+				// save what we have
+				m.saveMessageCount(ch.ID, currentCountingDate, currentDateMessageCount)
+
+				//reset current date and count
+				currentCountingDate = dateOnly(msgDate)
+				currentDateMessageCount = 1
 				continue
 			}
 
 			// if message is older than last count (or equal) save the current messageCount and finish
 			if msgDate.Unix() <= lastCountDate.Unix() {
-				// do the save
-				m.log.Debug("past last count date")
+				m.log.WithFields(logrus.Fields{
+					"channelID":     ch.ID,
+					"lastCountDate": lastCountDate,
+					"msgDate":       msgDate,
+				}).Debug("past last count date")
+				pastLastCountDate = true
 				break
 			}
 
-			// if message is older than the currentCountingDate save and update counting date
-			if msgDate.Unix() < currentCountingDate.Unix() {
-				m.log.Debug("past current count date. save n reset.")
-				m.saveMessageCount(ch.ID, currentCountingDate, currentDateMessageCount)
-				currentCountingDate = dateOnly(msgDate)
-				currentDateMessageCount = 0
-			}
-
 			currentDateMessageCount++
+		}
+
+		if pastLastCountDate {
+			break
 		}
 
 		// if 100, we may have more, other wise we are done
