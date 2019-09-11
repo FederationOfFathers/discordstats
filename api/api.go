@@ -22,7 +22,7 @@ func (a *APIHandlers) Start() {
 	r.HandleFunc("/message_counts/{guildID}/30", a.MessageCountsHandler30)
 	r.HandleFunc("/message_counts/{guildID}/60", a.MessageCountsHandler60)
 	r.HandleFunc("/message_counts/{guildID}/90", a.MessageCountsHandler90)
-	// r.HandleFunc("/message_counts/{guildID}/alltime", a.MessageCountsHandlerAll)
+	r.HandleFunc("/message_counts/{guildID}/alltime", a.MessageCountsHandlerAll)
 	http.ListenAndServe(":8801", r)
 	a.log.Info("listneing on localhost:8801")
 }

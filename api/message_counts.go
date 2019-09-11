@@ -35,6 +35,10 @@ func (a *APIHandlers) MessageCountsHandler90(w http.ResponseWriter, r *http.Requ
 	a.getMessageCounts(w, r, 90)
 }
 
+func (a *APIHandlers) MessageCountsHandlerAll(w http.ResponseWriter, r *http.Request) {
+	a.getMessageCounts(w, r, 0)
+}
+
 func (a *APIHandlers) getMessageCounts(w http.ResponseWriter, r *http.Request, maxDays int) {
 	vars := mux.Vars(r)
 	guildID := vars["guildID"]
